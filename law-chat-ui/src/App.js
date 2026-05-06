@@ -1,174 +1,105 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState } from "react";
 
 function App() {
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // 🔐 AUTH STATE
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [token, setToken] = useState(localStorage.getItem("token"));
+  const askQuestion = async () => {
+    if (!question.trim()) return;
 
-  // 💬 CHAT STATE
-  const [message, setMessage] = useState("");
-  const [history, setHistory] = useState([]);
-
-  // 📥 HISTORY LOAD
-  useEffect(() => {
-    axios.get("http://127.0.0.1:8000/history")
-      .then((res) => {
-        setHistory(Array.isArray(res.data.history) ? res.data.history : []);
-      })
-      .catch(() => setHistory([]));
-  }, []);
-
-  // 🔐 LOGIN
-  const login = async () => {
-    try {
-      const res = await axios.post("http://127.0.0.1:8000/login", {
-        username,
-        password
-      });
-
-      localStorage.setItem("token", res.data.token);
-      setToken(res.data.token);
-
-    } catch (err) {
-      alert("Login failed");
-    }
-  };
-
-  // 📝 REGISTER
-  const register = async () => {
-    try {
-      await axios.post("http://127.0.0.1:8000/register", {
-        username,
-        password
-      });
-
-      alert("Registered!");
-
-    } catch (err) {
-      alert("User exists");
-    }
-  };
-
-  // 💬 SEND MESSAGE
-  const sendMessage = async () => {
-    if (!message.trim()) return;
+    setLoading(true);
+    setAnswer("");
 
     try {
-      const res = await axios.post(
-        "http://127.0.0.1:8000/chat",
-        { message },
+      const res = await fetch(
+        "https://law-chatbot-sokooo.onrender.com/ask",
         {
+          method: "POST",
           headers: {
-            Authorization: token
-          }
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ question }),
         }
       );
 
-      const newItem = {
-        question: message,
-        answer: res.data.reply,
-      };
+      // ❗ RESPONSE STATUS ШАЛГАНА
+      if (!res.ok) {
+        throw new Error("Server error: " + res.status);
+      }
 
-      setHistory((prev) => [...prev, newItem]);
-      setMessage("");
+      const data = await res.json();
 
+      console.log("API response:", data); // debug
+
+      // ❗ backend format бүх тохиолдлыг handle хийнэ
+      if (typeof data === "string") {
+        setAnswer(data);
+      } else if (data.answer) {
+        setAnswer(data.answer);
+      } else if (data.result) {
+        setAnswer(data.result);
+      } else {
+        setAnswer(JSON.stringify(data));
+      }
     } catch (err) {
       console.error(err);
+      setAnswer("❌ Алдаа: " + err.message);
     }
-  };
 
-  // 🚪 LOGOUT
-  const logout = () => {
-    localStorage.removeItem("token");
-    setToken(null);
+    setLoading(false);
   };
 
   return (
-    <div style={{ padding: "20px", maxWidth: "600px", margin: "auto" }}>
+    <div style={styles.container}>
+      <h1>⚖️ Хууль AI Chatbot</h1>
 
-      <h1>⚖️ Law Chatbot</h1>
+      <textarea
+        style={styles.input}
+        placeholder="Асуултаа бич..."
+        value={question}
+        onChange={(e) => setQuestion(e.target.value)}
+      />
 
-      {/* LOGIN */}
-      {!token && (
-        <>
-          <h3>Login</h3>
+      <button style={styles.button} onClick={askQuestion}>
+        {loading ? "⏳ Уншиж байна..." : "Асуух"}
+      </button>
 
-          <input
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-
-          <input
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-
-          <br /><br />
-
-          <button onClick={login}>Login</button>
-          <button onClick={register}>Register</button>
-        </>
+      {answer && (
+        <div style={styles.answerBox}>
+          <h3>Хариу:</h3>
+          <p>{answer}</p>
+        </div>
       )}
-
-      {/* CHAT */}
-      {token && (
-        <>
-          <button onClick={logout}>Logout</button>
-
-          <div style={{ marginTop: "20px" }}>
-            <input
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Асуулт бич..."
-              style={{ width: "70%", padding: "8px" }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") sendMessage();
-              }}
-            />
-
-            <button onClick={sendMessage}>Send</button>
-          </div>
-
-          {/* HISTORY */}
-          <div style={{ marginTop: "20px" }}>
-            {Array.isArray(history) && history.map((item, index) => (
-              <div key={index}>
-
-                <div style={{ textAlign: "right" }}>
-                  <span style={{
-                    background: "#007bff",
-                    color: "white",
-                    padding: "8px",
-                    borderRadius: "10px"
-                  }}>
-                    {item.question}
-                  </span>
-                </div>
-
-                <div style={{ textAlign: "left", marginBottom: "10px" }}>
-                  <span style={{
-                    background: "#eee",
-                    padding: "8px",
-                    borderRadius: "10px"
-                  }}>
-                    {item.answer}
-                  </span>
-                </div>
-
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
     </div>
   );
 }
+
+const styles = {
+  container: {
+    maxWidth: "600px",
+    margin: "50px auto",
+    textAlign: "center",
+    fontFamily: "Arial",
+  },
+  input: {
+    width: "100%",
+    height: "100px",
+    padding: "10px",
+    fontSize: "16px",
+    marginBottom: "10px",
+  },
+  button: {
+    padding: "10px 20px",
+    fontSize: "16px",
+    cursor: "pointer",
+  },
+  answerBox: {
+    marginTop: "20px",
+    padding: "15px",
+    backgroundColor: "#f2f2f2",
+    borderRadius: "10px",
+  },
+};
 
 export default App;
