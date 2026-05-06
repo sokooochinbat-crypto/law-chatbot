@@ -24,3 +24,16 @@ class QuestionRequest(BaseModel):
 def ask(req: QuestionRequest):
     answer = ask_question(req.question)
     return {"answer": answer}
+from fastapi import UploadFile, File
+
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    content = await file.read()
+
+    # text болгож хөрвүүлэх
+    text = content.decode("utf-8", errors="ignore")
+
+    # AI руу явуулах
+    answer = ask_question(text)
+
+    return {"answer": answer}
