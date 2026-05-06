@@ -103,3 +103,4 @@ const styles = {
 };
 
 export default App;
+const API_URL = "https://law-chatbot-sokooo.onrender.com/ask";
